@@ -27,7 +27,7 @@ impl std::fmt::Display for NatsServerError {
             NatsServerError::StartupTimeout => {
                 write!(f, "NATS server failed to start within timeout")
             }
-            NatsServerError::Other(msg) => write!(f, "{}", msg),
+            NatsServerError::Other(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -56,7 +56,7 @@ impl NatsTestServer {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     NatsServerError::BinaryNotFound
                 } else {
-                    NatsServerError::Other(format!("Failed to start nats-server: {}", e))
+                    NatsServerError::Other(format!("Failed to start nats-server: {e}"))
                 }
             })?;
 
@@ -102,10 +102,10 @@ impl Drop for NatsTestServer {
 
 fn find_available_port() -> Result<u16, NatsServerError> {
     let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| NatsServerError::Other(format!("Failed to bind to port: {}", e)))?;
+        .map_err(|e| NatsServerError::Other(format!("Failed to bind to port: {e}")))?;
     let port = listener
         .local_addr()
-        .map_err(|e| NatsServerError::Other(format!("Failed to get local address: {}", e)))?
+        .map_err(|e| NatsServerError::Other(format!("Failed to get local address: {e}")))?
         .port();
     drop(listener);
     Ok(port)

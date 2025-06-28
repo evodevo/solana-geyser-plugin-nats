@@ -25,7 +25,7 @@ fn test_config_loading_with_nats_server() {
             println!("Skipping test: nats-server binary not found. Install nats-server to run this test.");
             return;
         }
-        Err(e) => panic!("Failed to start NATS server: {}", e),
+        Err(e) => panic!("Failed to start NATS server: {e}"),
     };
 
     let nats_url = format!("nats://{}", nats_server.url());
@@ -165,10 +165,7 @@ fn test_valid_config_file() {
         if let Err(GeyserPluginError::Custom(_)) = result {
             // Expected - NATS connection error
         } else {
-            panic!(
-                "Expected Custom error (NATS connection failure) or success, got: {:?}",
-                result
-            );
+            panic!("Expected Custom error (NATS connection failure) or success, got: {result:?}");
         }
     }
 }

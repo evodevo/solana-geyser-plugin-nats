@@ -13,7 +13,7 @@ fn skip_if_nats_unavailable() -> Option<NatsTestServer> {
             println!("Skipping test: nats-server binary not found. Install nats-server to run this test.");
             None
         }
-        Err(e) => panic!("Failed to start NATS server: {}", e),
+        Err(e) => panic!("Failed to start NATS server: {e}"),
     }
 }
 
@@ -95,7 +95,7 @@ fn test_nats_server_infrastructure() {
 
     let url = server.url();
 
-    println!("NATS test server started on: {}", url);
+    println!("NATS test server started on: {url}");
 
     // Verify we can connect to it
     let stream_result = std::net::TcpStream::connect(&url);
