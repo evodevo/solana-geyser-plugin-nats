@@ -1,0 +1,20 @@
+[package]
+name = "submitter"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "submitter"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+base64 = { workspace = true } 

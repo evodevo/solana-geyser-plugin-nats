@@ -1,0 +1,83 @@
+services:
+  # NATS Server
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-server
+    ports:
+      - "4222:4222"
+      - "8222:8222"  
+    command: [
+      "--jetstream=false",
+      "--http_port=8222",
+      "--port=4222",
+      "--log=/dev/stdout"
+    ]
+    networks:
+      - solana-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Validator with plugin
+  plugin-validator:
+    build:
+      context: ..
+      dockerfile: docker/dockerfiles/Dockerfile.validator
+    container_name: plugin-validator
+    ports:
+      - "8899:8899" 
+    volumes:
+      - ./configs/geyser-plugin-config.json:/app/geyser-plugin-config.json:ro
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - solana-net
+    environment:
+      - RUST_LOG=info,solana_geyser_plugin_nats=debug
+
+  # NATS Consumer 
+  nats-consumer:
+    build:
+      context: ..
+      dockerfile: docker/dockerfiles/Dockerfile.consumer
+    container_name: nats-consumer
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - solana-net
+    environment:
+      - NATS_URL=nats://nats:4222
+      - NATS_SUBJECT=solana.transactions.non_vote
+    volumes:
+      - consumer-data:/app/data
+
+  # Transaction Submitter - sends test transactions to validator
+  transaction-submitter:
+    build:
+      context: ..
+      dockerfile: docker/dockerfiles/Dockerfile.submitter
+    container_name: transaction-submitter
+    depends_on:
+      plugin-validator:
+        condition: service_healthy
+      nats-consumer:
+        condition: service_started
+    networks:
+      - solana-net
+    environment:
+      - SOLANA_URL=http://plugin-validator:8899
+      - NATS_URL=nats://nats:4222
+    volumes:
+      - consumer-data:/app/data
+    command: ["/app/submitter"]
+
+volumes:
+  consumer-data:
+
+networks:
+  solana-net:
+    driver: bridge 

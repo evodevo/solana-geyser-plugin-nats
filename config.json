@@ -1,0 +1,12 @@
+{
+    "libpath": "/app/libsolana_geyser_plugin_nats.so",
+    "nats_url": "nats://nats:4222",
+    "subject": "solana.transactions.non_vote",
+    "max_retries": 5,
+    "timeout_secs": 10,
+    "filter": {
+        "select_all_transactions": true,
+        "select_vote_transactions": false,
+        "mentioned_addresses": []
+    }
+} 
