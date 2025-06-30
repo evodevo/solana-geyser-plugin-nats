@@ -1,13 +1,11 @@
 use {
-    solana_geyser_plugin_nats::{
-        connection::{ConnectionError, ConnectionManager, NatsMessage},
-    },
+    solana_geyser_plugin_nats::connection::{ConnectionError, ConnectionManager, NatsMessage},
     std::{
+        io::{BufRead, BufReader, Read, Write},
+        net::TcpListener,
         sync::Arc,
         thread,
         time::Duration,
-        net::TcpListener,
-        io::{BufRead, BufReader, Write, Read},
     },
 };
 
@@ -58,10 +56,10 @@ impl MockNatsServer {
                 let mut write_stream = stream;
                 let mut reader = BufReader::new(&mut read_stream);
                 let mut line = String::new();
-                
+
                 // Send INFO message
                 let _ = write_stream.write_all(b"INFO {\"server_id\":\"test\"}\r\n");
-                
+
                 // Read and respond to commands
                 while reader.read_line(&mut line).unwrap_or(0) > 0 {
                     if line.trim().starts_with("CONNECT") {
@@ -92,10 +90,10 @@ impl MockNatsServer {
                 let mut write_stream = stream;
                 let mut reader = BufReader::new(&mut read_stream);
                 let mut line = String::new();
-                
+
                 // Send INFO and then error responses
                 let _ = write_stream.write_all(b"INFO {\"server_id\":\"test\"}\r\n");
-                
+
                 while reader.read_line(&mut line).unwrap_or(0) > 0 {
                     let _ = write_stream.write_all(b"-ERR 'Test Error'\r\n");
                     line.clear();
@@ -112,9 +110,9 @@ impl MockNatsServer {
                 let mut write_stream = stream;
                 let mut reader = BufReader::new(&mut read_stream);
                 let mut line = String::new();
-                
+
                 let _ = write_stream.write_all(b"INFO {\"server_id\":\"test\"}\r\n");
-                
+
                 while reader.read_line(&mut line).unwrap_or(0) > 0 {
                     thread::sleep(Duration::from_millis(delay_ms));
                     let _ = write_stream.write_all(b"+OK\r\n");
@@ -136,14 +134,15 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_simple_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 2).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 2).unwrap();
+
         let msg = create_test_message_with_subject("test.protocol.handshake");
         assert!(manager.send_message(msg).is_ok());
-        
+
         thread::sleep(Duration::from_millis(200));
         manager.shutdown();
     }
@@ -154,24 +153,37 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_simple_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 2).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 2).unwrap();
+
         // Test different message formats to exercise protocol formatting
         let test_messages = vec![
-            NatsMessage { subject: "short".to_string(), payload: b"x".to_vec() },
-            NatsMessage { subject: "test.very.long.subject.name".to_string(), payload: b"some payload".to_vec() },
-            NatsMessage { subject: "empty.payload".to_string(), payload: vec![] },
-            NatsMessage { subject: "binary.data".to_string(), payload: vec![0, 1, 2, 255] },
+            NatsMessage {
+                subject: "short".to_string(),
+                payload: b"x".to_vec(),
+            },
+            NatsMessage {
+                subject: "test.very.long.subject.name".to_string(),
+                payload: b"some payload".to_vec(),
+            },
+            NatsMessage {
+                subject: "empty.payload".to_string(),
+                payload: vec![],
+            },
+            NatsMessage {
+                subject: "binary.data".to_string(),
+                payload: vec![0, 1, 2, 255],
+            },
         ];
-        
+
         for msg in test_messages {
             assert!(manager.send_message(msg).is_ok());
             thread::sleep(Duration::from_millis(10));
         }
-        
+
         thread::sleep(Duration::from_millis(200));
         manager.shutdown();
     }
@@ -182,39 +194,41 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_error_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 2, 1).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 2, 1).unwrap();
+
         let msg = create_test_message_with_subject("test.error.response");
         assert!(manager.send_message(msg).is_ok());
-        
+
         thread::sleep(Duration::from_millis(200));
         manager.shutdown();
     }
 
-    #[test] 
+    #[test]
     fn test_keepalive_ping_coverage() {
         // Test the keepalive PING logic by keeping connection alive
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_simple_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 3).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 3).unwrap();
+
         let msg = create_test_message_with_subject("test.keepalive.initial");
         assert!(manager.send_message(msg).is_ok());
-        
+
         // Keep connection active to trigger ping logic
         for i in 0..3 {
             thread::sleep(Duration::from_millis(100));
             let msg = create_test_message_with_subject(&format!("test.keepalive.{i}"));
             let _ = manager.send_message(msg);
         }
-        
+
         manager.shutdown();
     }
 
@@ -224,14 +238,15 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_slow_response_server(100);
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 1).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 1).unwrap();
+
         let msg = create_test_message_with_subject("test.slow.response");
         assert!(manager.send_message(msg).is_ok());
-        
+
         thread::sleep(Duration::from_millis(500));
         manager.shutdown();
     }
@@ -241,27 +256,28 @@ mod mock_server_tests {
         // Test connection recovery logic
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
-        
+
         let error_handle = mock_server.run_error_response_server();
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 10, 1).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 10, 1).unwrap();
+
         let msg = create_test_message_with_subject("test.recovery.initial");
         assert!(manager.send_message(msg).is_ok());
-        
+
         thread::sleep(Duration::from_millis(200));
-        
+
         // Simulate server restart
         drop(error_handle);
         let _good_handle = mock_server.run_simple_response_server();
-        
+
         for i in 0..2 {
             let msg = create_test_message_with_subject(&format!("test.recovery.{i}"));
             let _ = manager.send_message(msg);
             thread::sleep(Duration::from_millis(50));
         }
-        
+
         manager.shutdown();
     }
 
@@ -271,21 +287,22 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_simple_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let mut manager = ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 2).unwrap();
-        
+
+        let mut manager =
+            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 3, 2).unwrap();
+
         // Large message to exercise protocol formatting
         let large_payload = vec![0x42; 50_000]; // 50KB message
         let msg = NatsMessage {
             subject: "test.large.message".to_string(),
             payload: large_payload,
         };
-        
+
         assert!(manager.send_message(msg).is_ok());
         thread::sleep(Duration::from_millis(300));
-        
+
         manager.shutdown();
     }
 
@@ -295,33 +312,32 @@ mod mock_server_tests {
         let mock_server = MockNatsServer::new().unwrap();
         let port = mock_server.port();
         let _server_handle = mock_server.run_simple_response_server();
-        
+
         thread::sleep(Duration::from_millis(50));
-        
-        let manager = Arc::new(
-            ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 2).unwrap()
-        );
-        
+
+        let manager =
+            Arc::new(ConnectionManager::new(&format!("nats://127.0.0.1:{port}"), 5, 2).unwrap());
+
         let mut handles = vec![];
-        
+
         for thread_id in 0..3 {
             let manager_clone = manager.clone();
             let handle = thread::spawn(move || {
                 for msg_id in 0..5 {
-                    let msg = create_test_message_with_subject(
-                        &format!("test.concurrent.{thread_id}.{msg_id}")
-                    );
+                    let msg = create_test_message_with_subject(&format!(
+                        "test.concurrent.{thread_id}.{msg_id}"
+                    ));
                     let _ = manager_clone.send_message(msg);
                     thread::sleep(Duration::from_millis(10));
                 }
             });
             handles.push(handle);
         }
-        
+
         for handle in handles {
             handle.join().unwrap();
         }
-        
+
         thread::sleep(Duration::from_millis(200));
     }
 }
@@ -351,7 +367,7 @@ mod basic_functionality_tests {
         // Should succeed in creation even if no server running
         let result = ConnectionManager::new("nats://127.0.0.1:4222", 3, 2);
         assert!(result.is_ok());
-        
+
         let mut manager = result.unwrap();
         manager.shutdown();
     }
@@ -359,19 +375,19 @@ mod basic_functionality_tests {
     #[test]
     fn test_send_message_basic() {
         let mut manager = ConnectionManager::new("nats://127.0.0.1:9999", 1, 1).unwrap();
-        
+
         let msg = create_test_message();
         assert!(manager.send_message(msg).is_ok());
-        
+
         manager.shutdown();
     }
 
     #[test]
     fn test_send_message_after_shutdown() {
         let mut manager = ConnectionManager::new("nats://127.0.0.1:9999", 1, 1).unwrap();
-        
+
         manager.shutdown();
-        
+
         let msg = create_test_message();
         assert!(manager.send_message(msg).is_err());
     }
@@ -381,8 +397,8 @@ mod basic_functionality_tests {
         let error = ConnectionError::HostResolutionFailed {
             msg: "Test error".to_string(),
         };
-        
+
         let display_string = format!("{}", error);
         assert!(display_string.contains("Test error"));
     }
-} 
+}
