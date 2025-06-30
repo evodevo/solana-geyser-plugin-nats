@@ -24,8 +24,6 @@ fn create_test_message_with_subject(subject: &str) -> NatsMessage {
     }
 }
 
-
-
 // Mock NATS server for testing actual protocol behavior
 struct MockNatsServer {
     listener: TcpListener,
