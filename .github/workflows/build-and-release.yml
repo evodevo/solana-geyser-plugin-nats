@@ -109,7 +109,11 @@ jobs:
           
           # Create checksums
           cd artifacts
-          sha256sum ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sha256sum ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
