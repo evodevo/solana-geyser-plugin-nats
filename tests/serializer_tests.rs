@@ -612,7 +612,7 @@ fn test_serialize_multiple_transactions_consistency() {
 
         let result =
             TransactionSerializer::serialize_transaction_v2(&transaction_info, slot + i as u64);
-        assert!(result.is_ok(), "Failed to serialize transaction {}", i);
+        assert!(result.is_ok(), "Failed to serialize transaction {i}");
 
         let serialized = result.unwrap();
 

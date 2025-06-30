@@ -24,12 +24,7 @@ fn create_test_message_with_subject(subject: &str) -> NatsMessage {
     }
 }
 
-fn create_test_message_with_payload(payload: &[u8]) -> NatsMessage {
-    NatsMessage {
-        subject: "test.subject".to_string(),
-        payload: payload.to_vec(),
-    }
-}
+
 
 // Mock NATS server for testing actual protocol behavior
 struct MockNatsServer {
@@ -66,7 +61,7 @@ impl MockNatsServer {
                         let _ = write_stream.write_all(b"+OK\r\n");
                     } else if line.trim().starts_with("PUB") {
                         // Read the payload length and consume payload
-                        if let Some(parts) = line.trim().split_whitespace().nth(2) {
+                        if let Some(parts) = line.split_whitespace().nth(2) {
                             if let Ok(payload_len) = parts.parse::<usize>() {
                                 let mut payload = vec![0u8; payload_len + 2]; // +2 for \r\n
                                 let _ = reader.read_exact(&mut payload);
@@ -398,7 +393,7 @@ mod basic_functionality_tests {
             msg: "Test error".to_string(),
         };
 
-        let display_string = format!("{}", error);
+        let display_string = format!("{error}");
         assert!(display_string.contains("Test error"));
     }
 }
