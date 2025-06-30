@@ -541,8 +541,7 @@ mod integration_tests {
                     let result = processor_clone.process_transaction(transaction_info, slot);
                     assert!(
                         result.is_ok(),
-                        "Transaction processing failed in thread {}",
-                        thread_id
+                        "Transaction processing failed in thread {thread_id}"
                     );
                 }
             });
