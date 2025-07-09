@@ -1,0 +1,107 @@
+# Stage 1: Build solana-test-validator binary
+FROM ubuntu:22.04 AS solana-builder
+
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    pkg-config \
+    libudev-dev \
+    llvm \
+    libclang-dev \
+    protobuf-compiler \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Clone Solana validator repo
+WORKDIR /tmp
+RUN git clone https://github.com/anza-xyz/agave.git --branch v2.2.7 --depth 1
+WORKDIR /tmp/agave
+
+# Build only the test validator binary 
+RUN cargo build --release --bin solana-test-validator
+
+
+# Stage 2: Build the plugin
+FROM ubuntu:22.04 AS plugin-builder
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libudev-dev \
+    llvm \
+    libclang-dev \
+    protobuf-compiler \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY src/ ./src/
+COPY tests/ ./tests/
+
+# Build the plugin
+RUN cargo build --release
+
+
+
+# Stage 3: Runtime container
+FROM ubuntu:22.04
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    bzip2 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the solana-test-validator binary 
+COPY --from=solana-builder /tmp/agave/target/release/solana-test-validator /usr/local/bin/
+RUN chmod +x /usr/local/bin/solana-test-validator
+
+# Copy the plugin
+COPY --from=plugin-builder /app/target/release/libsolana_geyser_plugin_nats.so /app/
+
+# Create ledger directory
+RUN mkdir -p /app/test-ledger
+
+# Create startup script
+RUN echo '#!/bin/bash' > /app/start-validator.sh && \
+    echo 'set -e' >> /app/start-validator.sh && \
+    echo '' >> /app/start-validator.sh && \
+    echo 'echo "Starting Solana Test Validator with Geyser Plugin..."' >> /app/start-validator.sh && \
+    echo 'echo "Plugin: /app/libsolana_geyser_plugin_nats.so"' >> /app/start-validator.sh && \
+    echo 'echo "Config: /app/geyser-plugin-config.json"' >> /app/start-validator.sh && \
+    echo '' >> /app/start-validator.sh && \
+    echo '# Verify files exist' >> /app/start-validator.sh && \
+    echo 'ls -la /app/libsolana_geyser_plugin_nats.so' >> /app/start-validator.sh && \
+    echo 'ls -la /app/geyser-plugin-config.json' >> /app/start-validator.sh && \
+    echo '' >> /app/start-validator.sh && \
+    echo 'echo "Starting solana-test-validator..."' >> /app/start-validator.sh && \
+    echo 'exec solana-test-validator \' >> /app/start-validator.sh && \
+    echo '    --ledger /app/test-ledger \' >> /app/start-validator.sh && \
+    echo '    --bind-address 0.0.0.0 \' >> /app/start-validator.sh && \
+    echo '    --rpc-port 8899 \' >> /app/start-validator.sh && \
+    echo '    --geyser-plugin-config /app/geyser-plugin-config.json \' >> /app/start-validator.sh && \
+    echo '    --log' >> /app/start-validator.sh
+
+RUN chmod +x /app/start-validator.sh
+
+EXPOSE 8899
+
+# Health check for the real validator
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 --start-period=60s \
+    CMD curl -f http://localhost:8899/health || exit 1
+
+CMD ["/app/start-validator.sh"] 
