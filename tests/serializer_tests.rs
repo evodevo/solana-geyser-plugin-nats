@@ -187,7 +187,10 @@ fn test_serialize_transaction_with_default_meta() {
     let slot = 99999;
 
     // Create transaction info with default metadata
-    let default_meta = TransactionStatusMeta { cost_units: Some(0), ..Default::default() };
+    let default_meta = TransactionStatusMeta {
+        cost_units: Some(0),
+        ..Default::default()
+    };
     let transaction_info = ReplicaTransactionInfoV2 {
         signature: &transaction.signatures()[0],
         is_vote: false,
