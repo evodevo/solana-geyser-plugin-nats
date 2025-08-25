@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use {
     agave_geyser_plugin_interface::geyser_plugin_interface::{
         ReplicaTransactionInfo, ReplicaTransactionInfoV2, ReplicaTransactionInfoVersions,
@@ -52,6 +54,7 @@ fn create_test_meta() -> TransactionStatusMeta {
         loaded_addresses: Default::default(),
         return_data: None,
         compute_units_consumed: Some(150),
+        cost_units: Some(0),
     }
 }
 

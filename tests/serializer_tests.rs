@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use {
     agave_geyser_plugin_interface::geyser_plugin_interface::{
         ReplicaTransactionInfo, ReplicaTransactionInfoV2,
@@ -88,6 +90,7 @@ fn create_test_meta() -> TransactionStatusMeta {
             "Program 11111111111111111111111111111111 success".to_string(),
         ]),
         compute_units_consumed: Some(150),
+        cost_units: Some(0),
         ..Default::default()
     }
 }
@@ -103,6 +106,7 @@ fn create_error_meta() -> TransactionStatusMeta {
             "Transaction failed: InsufficientFundsForFee".to_string()
         ]),
         compute_units_consumed: Some(0),
+        cost_units: Some(0),
         ..Default::default()
     }
 }
@@ -183,7 +187,7 @@ fn test_serialize_transaction_with_default_meta() {
     let slot = 99999;
 
     // Create transaction info with default metadata
-    let default_meta = TransactionStatusMeta::default();
+    let default_meta = TransactionStatusMeta { cost_units: Some(0), ..Default::default() };
     let transaction_info = ReplicaTransactionInfoV2 {
         signature: &transaction.signatures()[0],
         is_vote: false,
