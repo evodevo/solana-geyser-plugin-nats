@@ -360,8 +360,7 @@ mod error_handling_tests {
 
         // Test 2: Invalid port - may succeed or fail depending on host resolution
         let result = ConnectionManager::new("nats://127.0.0.1:99999", 1, 1);
-        if result.is_ok() {
-            let mut manager = result.unwrap();
+        if let Ok(mut manager) = result {
             manager.shutdown();
         }
         // Both success and failure are valid outcomes for this test case
